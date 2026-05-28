@@ -72,7 +72,7 @@ python main.py
 1. **Validación**: Verifica que la variable de entorno `GROQ_API_KEY` esté configurada.
 2. **Carga Inteligente de Base Vectorial**: 
    - Si ya existe la base vectorial en la carpeta local `./chroma_db`, **la carga instantáneamente de disco** en menos de un segundo.
-   - Si no existe (primera ejecución), procesa el PDF `Informe Final.pdf`, lo divide en fragmentos semánticos, calcula sus embeddings locales y los guarda en la base vectorial.
+   - Si no existe (primera ejecución), procesa el PDF `documentacion.pdf`, lo divide en fragmentos semánticos, calcula sus embeddings locales y los guarda en la base vectorial.
 3. **Consola Interactiva de Preguntas (Bucle)**: El programa entra en un bucle interactivo de chat. Puedes escribir cualquier pregunta en tiempo real y el sistema te responderá basándose en el documento.
 4. **Generación con Groq (llama-3.1-8b-instant)**: Recupera los fragmentos de contexto más relevantes del documento, los inyecta en el prompt optimizado y solicita al modelo en Groq redactar una respuesta precisa en español, indicando además las páginas fuente exactas y fragmentos citados.
 5. **Salir**: Escribe `salir` o `exit` para terminar la sesión.
