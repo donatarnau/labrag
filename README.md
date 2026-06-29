@@ -1,78 +1,104 @@
-# Sistema RAG (Retrieval-Augmented Generation) Modular
+# LabRAG: Sistema RAG Local con Docker (FastAPI + Vue 3 + Ollama)
 
-Este proyecto proporciona un entorno y código base profesional para realizar consultas inteligentes sobre tus documentos PDF utilizando una arquitectura de generación aumentada por recuperación (RAG). 
+Este proyecto proporciona una arquitectura completa, profesional y dockerizada para implementar un sistema **RAG (Retrieval-Augmented Generation)** 100% local. Permite realizar consultas interactivas sobre documentos (`.pdf` o `.txt`) mediante una interfaz web moderna.
 
-## Tecnologías Utilizadas
-- **LLM**: API de Groq con el modelo de inferencia ultrarrápido `llama-3.1-8b-instant` (vía `langchain-groq`).
-- **Embeddings**: HuggingFace (`all-MiniLM-L6-v2`) que se ejecuta localmente y de forma gratuita en tu CPU.
-- **Base de Datos Vectorial**: ChromaDB local para almacenamiento de fragmentos.
-- **Procesamiento de Archivos**: `pypdf` para lectura y procesamiento de documentos.
+El backend cuenta con una personalidad muy particular: está configurado por defecto como un **asistente RAG extremadamente sarcástico, irreverente y humorístico** (usando el modelo `dolphin3` en Ollama).
 
 ---
 
-## Estructura del Proyecto
+## 🛠️ Arquitectura y Tecnologías
+
+El sistema está orquestado con **Docker Compose** en tres contenedores principales:
+
+1. **Frontend (Vue 3 + Vite)**: 
+   - Una interfaz web moderna, responsiva, con tema oscuro premium y visualización interactiva de las fuentes de información de cada respuesta.
+   - Servido mediante Nginx en el puerto `80`.
+2. **Backend (FastAPI + LangChain)**:
+   - API modular en Python.
+   - **Embeddings locales**: HuggingFace (`all-MiniLM-L6-v2`) que se ejecutan localmente (con aceleración de CPU optimizada).
+   - **Base de Datos Vectorial**: ChromaDB local con persistencia de disco para almacenar y recuperar los fragmentos indexados.
+   - **MultiQueryRetriever**: Genera variaciones de la consulta para mejorar la tasa de aciertos y la relevancia de los fragmentos recuperados.
+3. **Ollama**:
+   - Motor de LLM local configurado por defecto para ejecutar el modelo `dolphin3`.
+   - Soporte nativo para aceleración por GPU NVIDIA si está disponible en el host.
+
+---
+
+## 📂 Estructura del Proyecto
 
 ```text
-Labrag/
-├── documentacion.pdf        # Tu documento PDF de prueba
-├── .env.example             # Plantilla de configuración de variables de entorno
-├── requirements.txt         # Listado de dependencias necesarias
-├── main.py                  # Código modular principal de la aplicación RAG
-└── README.md                # Esta guía de uso
+labrag/
+├── backend/
+│   ├── main.py                  # API principal y lógica de LangChain RAG
+│   ├── requirements.txt         # Librerías de Python (FastAPI, PyTorch, LangChain...)
+│   ├── Dockerfile               # Construcción optimizada (multietapa, cache HuggingFace offline)
+│   └── documentacion.txt        # Documento de texto por defecto (puedes usar también .pdf)
+├── frontend/
+│   ├── src/                     # Código fuente de la interfaz en Vue 3
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── Dockerfile               # Construcción multietapa con Nginx
+├── docker-compose.yml           # Definición de servicios, volúmenes y GPU
+├── chroma_db/                   # [Ignorado en Git] Persistencia de vectores
+├── ollama_data/                 # [Ignorado en Git] Modelos locales de Ollama
+├── .gitignore                   # Configuración de archivos excluidos de Git
+└── README.md                    # Esta guía
 ```
 
 ---
 
-## Guía de Configuración Rápida (PowerShell en Windows)
+## 🚀 Guía de Configuración Rápida
 
-Sigue estos pasos en tu terminal para poner en marcha el sistema:
+### Requisitos Previos
 
-### 1. Crear y Activar el Entorno Virtual
-Abre tu terminal en el directorio del proyecto (`c:\Users\donat\Desktop\Labrag`) y ejecuta:
+- **Docker** y **Docker Compose** instalados.
+- *(Opcional)* **NVIDIA Container Toolkit** para habilitar la aceleración por GPU.
 
-```powershell
-# 1. Crear el entorno virtual en la carpeta .venv
-python -m venv .venv
+### Paso 1: Preparar el Documento
+Coloca tu documento de referencia dentro de la carpeta `backend/`. El sistema buscará:
+- `backend/documentacion.txt` (si existe, filtrando marcadores de chat como los de WhatsApp).
+- `backend/documentacion.pdf` (si no existe el archivo de texto).
 
-# 2. Activar el entorno virtual en Windows (PowerShell)
-.venv\Scripts\Activate.ps1
+*Nota: Asegúrate de que el archivo se llame exactamente `documentacion.txt` o `documentacion.pdf`.*
+
+### Paso 2: Levantar el Entorno con Docker Compose
+Desde la raíz del proyecto, ejecuta el siguiente comando para compilar e iniciar los servicios en segundo plano:
+
+```bash
+docker compose up --build -d
 ```
 
-*(Si usas el símbolo del sistema clásico (CMD) de Windows, actívalo con: `.venv\Scripts\activate.bat`)*
+Este comando:
+1. Compilará la interfaz de Vue y la montará en un servidor Nginx expuesto en el puerto `80`.
+2. Descargará y compilará la imagen del backend de FastAPI, pre-descargando el modelo de embeddings local para que funcione de forma 100% offline.
+3. Iniciará el contenedor de Ollama.
 
-### 2. Instalar las Dependencias
-Con el entorno virtual activado, instala todas las librerías necesarias ejecutando:
+### Paso 3: Descargar el Modelo en Ollama
+Dado que Ollama se ejecuta localmente y no requiere de APIs externas, debes descargar el modelo `dolphin3` ejecutando el siguiente comando:
 
-```powershell
-pip install -r requirements.txt
+```bash
+docker compose exec ollama ollama run dolphin3
 ```
 
-### 3. Configurar tu Clave de API de Groq
-1. Crea una copia del archivo `.env.example` y llámalo `.env`:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-2. Abre el archivo `.env` recién creado y reemplaza `tu_clave_api_de_groq_aqui` por tu clave de API real de Groq.
-   ```env
-   GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxx
-   ```
-   *Puedes obtener una clave de API de Groq totalmente gratis registrándote en [Groq Console](https://console.groq.com/).*
+*(Una vez que comience a descargar el modelo, puedes cerrar el proceso interactivo con `Ctrl + C`. El modelo seguirá estando disponible en el contenedor de Ollama gracias al volumen persistente `ollama_data`).*
 
 ---
 
-## Cómo Ejecutar el Proyecto
+## 💻 Direcciones de Acceso
 
-Una vez que hayas configurado tu `.env` con la API Key y con tu archivo `documentacion.pdf` en la carpeta raíz del proyecto, ejecuta el script principal:
+Una vez levantados los servicios y con el modelo descargado en Ollama, puedes acceder a:
 
-```powershell
-python main.py
-```
+* **Panel Frontend (Interfaz Web)**: [http://localhost](http://localhost) (Puerto 80)
+* **Documentación de la API (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Endpoint de Salud**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
-### ¿Qué hace el script?
-1. **Validación**: Verifica que la variable de entorno `GROQ_API_KEY` esté configurada.
-2. **Carga Inteligente de Base Vectorial**: 
-   - Si ya existe la base vectorial en la carpeta local `./chroma_db`, **la carga instantáneamente de disco** en menos de un segundo.
-   - Si no existe (primera ejecución), procesa el PDF `documentacion.pdf`, lo divide en fragmentos semánticos, calcula sus embeddings locales y los guarda en la base vectorial.
-3. **Consola Interactiva de Preguntas (Bucle)**: El programa entra en un bucle interactivo de chat. Puedes escribir cualquier pregunta en tiempo real y el sistema te responderá basándose en el documento.
-4. **Generación con Groq (llama-3.1-8b-instant)**: Recupera los fragmentos de contexto más relevantes del documento, los inyecta en el prompt optimizado y solicita al modelo en Groq redactar una respuesta precisa en español, indicando además las páginas fuente exactas y fragmentos citados.
-5. **Salir**: Escribe `salir` o `exit` para terminar la sesión.
+---
+
+## 🧠 ¿Cómo Funciona la lógica del RAG?
+
+1. **Lectura y Fragmentación**: El backend procesa el documento y lo fragmenta en partes de 500 caracteres con 100 de solapamiento semántico.
+2. **Embeddings Locales Offline**: Genera vectores utilizando `all-MiniLM-L6-v2` ejecutándose de manera local en el contenedor.
+3. **Búsqueda Vectorial**: Expande y optimiza la búsqueda de fragmentos relevantes en ChromaDB mediante `MultiQueryRetriever`.
+4. **Generación con Personalidad**: El contexto recuperado es inyectado en un prompt diseñado específicamente para que el LLM responda con un rol irreverente y sarcástico.
+5. **Fuentes Citadas**: Cada respuesta devuelta incluye la procedencia exacta (archivo, página y fragmento de texto) de la información utilizada para responder.
