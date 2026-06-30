@@ -31,6 +31,26 @@
         </div>
       </div>
 
+      <div class="info-section personality-section">
+        <h3>Personalidad de la IA</h3>
+        <div class="personality-selector">
+          <button 
+            v-for="p in personalities" 
+            :key="p.id"
+            :class="['personality-btn', { active: selectedPersonality === p.id }]"
+            @click="selectedPersonality = p.id"
+            :disabled="loading"
+            type="button"
+          >
+            <span class="personality-emoji">{{ p.emoji }}</span>
+            <div class="personality-info">
+              <span class="personality-name">{{ p.name }}</span>
+              <span class="personality-desc">{{ p.desc }}</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <div class="info-section">
         <h3>Documentos Cargados</h3>
         <div class="doc-item">
@@ -205,6 +225,13 @@ const backendStatus = ref({
 
 const documentName = ref('Cargando...')
 
+const selectedPersonality = ref('Maleducado')
+const personalities = ref([
+  { id: 'Maleducado', name: 'Maleducado', emoji: '🤬', desc: 'Sarcástico, irreverente e informal' },
+  { id: 'Objetivo', name: 'Objetivo', emoji: '⚖️', desc: 'Neutral, conciso y profesional' },
+  { id: 'Analítico', name: 'Analítico', emoji: '🧠', desc: 'Detallado, lógico y estructurado' }
+])
+
 // Check backend health status
 const checkHealth = async () => {
   try {
@@ -266,7 +293,8 @@ const sendMessage = async () => {
 
   try {
     const response = await axios.post(`${API_BASE_URL}/api/preguntar`, {
-      pregunta: query
+      pregunta: query,
+      personalidad: selectedPersonality.value
     })
 
     // Add RAG response
@@ -518,6 +546,65 @@ body {
 
 .sug-btn:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.personality-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.personality-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.personality-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.personality-btn.active {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+}
+
+.personality-emoji {
+  font-size: 20px;
+}
+
+.personality-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.personality-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.personality-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.personality-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -1032,6 +1119,20 @@ body {
     flex-direction: row;
     flex-wrap: wrap;
     margin-bottom: 0;
+  }
+  .info-section.personality-section {
+    display: block;
+    margin-bottom: 16px;
+  }
+  .info-section.personality-section .personality-selector {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .info-section.personality-section .personality-btn {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 100px;
+    padding: 8px 12px;
   }
   .sug-btn {
     padding: 6px 12px;

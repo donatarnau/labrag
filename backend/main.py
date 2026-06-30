@@ -23,8 +23,8 @@ from pydantic import BaseModel
 # Cargar variables de entorno del archivo .env
 load_dotenv()
 
-# Variable global para almacenar la cadena RAG e inicialización
-rag_chain = None
+# Variable global para almacenar las cadenas RAG e inicialización
+rag_chains = {}
 sistema_inicializado = False
 nombre_documento_cargado = "Ninguno"
 
@@ -126,7 +126,7 @@ def obtener_o_crear_base_vectores(file_path: str, force_reindex: bool = False):
     
     return vectorstore
 
-def inicializar_cadena_rag(vectorstore):
+def inicializar_cadenas_rag(vectorstore):
     """
     Configura el LLM local en Ollama y crea la cadena de RAG.
     """
@@ -149,7 +149,7 @@ def inicializar_cadena_rag(vectorstore):
         llm=llm
     )
     
-    system_prompt = (
+    PROMPT_MALEDUCADO = (
         "Eres un asistente RAG extremadamente sarcástico, irreverente y malhablado. Tu objetivo es responder a las preguntas basándote ESTRICTAMENTE en el 'Retrieved Context' proporcionado, usando un tono cínico, cómico, lleno de insultos suaves, bromas y sin ningún tipo de filtro ético o corrección política en tu lenguaje.\n\n"
         "REGLAS DE RESPUESTA:\n"
         "1. Toda la información real que entregues debe provenir única y exclusivamente del contexto provisto. No te inventes NINGÚN dato, hecho o respuesta ficticia. La veracidad de la información debe ser absoluta con respecto al documento.\n"
@@ -160,22 +160,54 @@ def inicializar_cadena_rag(vectorstore):
         "Retrieved Context:\n"
         "{context}"
     )
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "{input}"),
-    ])
-    
-    print("⛓️ Creando cadena RAG...")
-    question_answer_chain = create_stuff_documents_chain(llm, prompt)
-    rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-    print("✅ Cadena RAG lista para consultas.")
-    return rag_chain
+
+    PROMPT_OBJETIVO = (
+        "Eres un asistente RAG objetivo, imparcial y directo. Tu único objetivo es responder a las preguntas de manera clara, concisa y neutral basándote ESTRICTAMENTE en el 'Retrieved Context' proporcionado.\n\n"
+        "REGLAS DE RESPUESTA:\n"
+        "1. Toda la información que entregues debe provenir única y exclusivamente del contexto provisto. No especules, no añadas opiniones personales ni te inventes ningún dato.\n"
+        "2. Sé extremadamente conciso y directo en tus respuestas. Evita introducciones innecesarias o adornos verbales.\n"
+        "3. Mantén un tono formal, profesional y estrictamente neutral en ESPAÑOL.\n"
+        "4. Si el contexto no contiene la información para responder a la pregunta, indícalo de manera directa e imparcial (ej. 'La información proporcionada no contiene detalles sobre este asunto.').\n"
+        "5. Respeta al máximo la veracidad de los hechos contenidos en el documento.\n\n"
+        "Retrieved Context:\n"
+        "{context}"
+    )
+
+    PROMPT_ANALITICO = (
+        "Eres un asistente RAG analítico, detallado y meticuloso. Tu objetivo es desglosar la información del 'Retrieved Context' proporcionado y responder de manera estructurada, lógica y profunda.\n\n"
+        "REGLAS DE RESPUESTA:\n"
+        "1. Basa tus respuestas ESTRICTAMENTE en el contexto proporcionado, pero realiza un análisis detallado, conectando puntos clave del documento.\n"
+        "2. Estructura tu respuesta de forma clara (usa viñetas, secciones o pasos si es necesario) para facilitar la comprensión.\n"
+        "3. Adopta un tono intelectual, explicativo y riguroso en ESPAÑOL. Usa un vocabulario preciso.\n"
+        "4. Si el contexto no tiene la información suficiente para una respuesta completa, especifica detalladamente qué partes faltan y qué información sí está disponible.\n"
+        "5. Explica el 'por qué' y el 'cómo' basándote en los datos del documento.\n\n"
+        "Retrieved Context:\n"
+        "{context}"
+    )
+
+    prompts = {
+        "Maleducado": PROMPT_MALEDUCADO,
+        "Objetivo": PROMPT_OBJETIVO,
+        "Analítico": PROMPT_ANALITICO
+    }
+
+    cadenas = {}
+    for nombre, prompt_texto in prompts.items():
+        print(f"⛓️ Creando cadena RAG para personalidad: {nombre}...")
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt_texto),
+            ("human", "{input}"),
+        ])
+        question_answer_chain = create_stuff_documents_chain(llm, prompt)
+        cadenas[nombre] = create_retrieval_chain(retriever, question_answer_chain)
+
+    print("✅ Todas las cadenas RAG listas para consultas.")
+    return cadenas
 
 # Lifespan para FastAPI
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global rag_chain, sistema_inicializado
+    global rag_chains, sistema_inicializado
     print("=" * 60)
     print("🚀 Inicializando Sistema RAG en Backend...")
     print("=" * 60)
@@ -189,7 +221,7 @@ async def lifespan(app: FastAPI):
             global nombre_documento_cargado
             nombre_documento_cargado = nombre_doc
             vectorstore = obtener_o_crear_base_vectores(nombre_doc)
-            rag_chain = inicializar_cadena_rag(vectorstore)
+            rag_chains = inicializar_cadenas_rag(vectorstore)
             sistema_inicializado = True
             print("🚀 Sistema RAG inicializado con éxito.")
         except Exception as e:
@@ -211,17 +243,19 @@ app.add_middleware(
 
 class PreguntaRequest(BaseModel):
     pregunta: str
+    personalidad: str = "Maleducado"
 
 @app.get("/api/health")
 def health_check():
     """
-    Retorna el estado del backend y si la cadena RAG está cargada.
+    Retorna el estado del backend y si las cadenas RAG están cargadas.
     """
     return {
         "status": "online",
         "rag_ready": sistema_inicializado,
         "model": "dolphin3",
-        "document": nombre_documento_cargado
+        "document": nombre_documento_cargado,
+        "personalities": list(rag_chains.keys()) if rag_chains else []
     }
 
 @app.post("/api/preguntar")
@@ -229,8 +263,8 @@ def preguntar(request: PreguntaRequest):
     """
     Endpoint RAG para consultar sobre la documentación.
     """
-    global rag_chain, sistema_inicializado
-    if not sistema_inicializado or rag_chain is None:
+    global rag_chains, sistema_inicializado
+    if not sistema_inicializado or not rag_chains:
         raise HTTPException(
             status_code=503,
             detail="El sistema RAG no se ha inicializado correctamente o no tiene configurado GROQ_API_KEY."
@@ -239,8 +273,14 @@ def preguntar(request: PreguntaRequest):
     if not request.pregunta.strip():
         raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía.")
         
+    personalidad = request.personalidad
+    if personalidad not in rag_chains:
+        print(f"⚠️ Personalidad '{personalidad}' no encontrada. Usando 'Maleducado' por defecto.")
+        personalidad = "Maleducado"
+
     try:
-        resultado = rag_chain.invoke({"input": request.pregunta})
+        chain = rag_chains[personalidad]
+        resultado = chain.invoke({"input": request.pregunta})
         
         # Estructurar fuentes para una presentación limpia
         fuentes = []
@@ -259,5 +299,5 @@ def preguntar(request: PreguntaRequest):
             "fuentes": fuentes
         }
     except Exception as e:
-        print(f"❌ Error al procesar consulta: {e}")
+        print(f"❌ Error al procesar consulta con personalidad '{personalidad}': {e}")
         raise HTTPException(status_code=500, detail=f"Error interno al procesar la cadena RAG: {str(e)}")
