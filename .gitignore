@@ -238,3 +238,6 @@ lerna-debug.log*
 .env
 .env.*
 !.env.example
+
+# Documents
+backend/documentacion.*
