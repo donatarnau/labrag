@@ -2,7 +2,10 @@
 
 Este proyecto proporciona una arquitectura completa, profesional y dockerizada para implementar un sistema **RAG (Retrieval-Augmented Generation)** 100% local. Permite realizar consultas interactivas sobre documentos (`.pdf` o `.txt`) mediante una interfaz web moderna.
 
-El backend cuenta con una personalidad muy particular: está configurado por defecto como un **asistente RAG extremadamente sarcástico, irreverente y humorístico** (usando el modelo `dolphin3` en Ollama).
+El sistema cuenta con un selector de personalidad en la barra lateral que permite cambiar dinámicamente el comportamiento del asistente RAG. Admite tres perfiles de respuesta configurados en el backend:
+- **Maleducado** 🤬 (por defecto): Sarcástico, irreverente e informal.
+- **Objetivo** ⚖️: Neutral, formal y sumamente directo/conciso.
+- **Analítico** 🧠: Detallado, estructurado de forma lógica y explicativo.
 
 ---
 
@@ -104,5 +107,5 @@ Una vez levantados los servicios y con el modelo descargado en Ollama, puedes ac
 1. **Lectura y Fragmentación**: El backend procesa el documento y lo fragmenta en partes de 500 caracteres con 100 de solapamiento semántico.
 2. **Embeddings Locales Offline**: Genera vectores utilizando `all-MiniLM-L6-v2` ejecutándose de manera local en el contenedor.
 3. **Búsqueda Vectorial**: Expande y optimiza la búsqueda de fragmentos relevantes en la base de datos de Qdrant mediante `MultiQueryRetriever`.
-4. **Generación con Personalidad**: El contexto recuperado es inyectado en un prompt diseñado específicamente para que el LLM responda con un rol irreverente y sarcástico.
+4. **Generación con Personalidad Seleccionable**: El contexto recuperado es inyectado en el prompt de la personalidad elegida (Maleducado, Objetivo o Analítico), permitiendo adaptar las respuestas y el tono al gusto del usuario.
 5. **Fuentes Citadas**: Cada respuesta devuelta incluye la procedencia exacta (archivo, página y fragmento de texto) de la información utilizada para responder.
