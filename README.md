@@ -16,7 +16,7 @@ El sistema está orquestado con **Docker Compose** en cuatro contenedores princi
 1. **Frontend (Vue 3 + Vite)**: 
    - Una interfaz web moderna, responsiva, con tema oscuro premium y visualización interactiva de las fuentes de información de cada respuesta.
    - Servido mediante Nginx en el puerto `80`.
-2. **Backend (FastAPI + LangChain)**:
+2. **Backend (FastAPI + LangGraph)**:
    - API modular en Python.
    - **Embeddings locales**: HuggingFace (`all-MiniLM-L6-v2`) que se ejecutan localmente (con aceleración de CPU optimizada).
    - **MultiQueryRetriever**: Genera variaciones de la consulta para mejorar la tasa de aciertos y la relevancia de los fragmentos recuperados.
@@ -34,8 +34,8 @@ El sistema está orquestado con **Docker Compose** en cuatro contenedores princi
 ```text
 labrag/
 ├── backend/
-│   ├── main.py                  # API principal y lógica de LangChain RAG
-│   ├── requirements.txt         # Librerías de Python (FastAPI, PyTorch, LangChain...)
+│   ├── main.py                  # API principal y lógica de LangGraph RAG
+│   ├── requirements.txt         # Librerías de Python (FastAPI, PyTorch, LangGraph...)
 │   ├── Dockerfile               # Construcción optimizada (multietapa, cache HuggingFace offline)
 │   └── documentacion.txt        # Documento de texto por defecto (puedes usar también .pdf)
 ├── frontend/
