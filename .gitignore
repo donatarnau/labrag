@@ -218,7 +218,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Local databases and models
-chroma_db/
+qdrant_data/
 ollama_data/
 
 # Node/Vite/Vue frontend

@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
 from langchain_ollama import ChatOllama
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
@@ -77,9 +78,9 @@ def cargar_y_dividir_documento(file_path: str):
     print(f"🧩 Texto dividido en {len(fragmentos)} fragmentos.")
     return fragmentos
 
-def obtener_o_crear_base_vectores(file_path: str, persist_dir: str = "./chroma_db", force_reindex: bool = False):
+def obtener_o_crear_base_vectores(file_path: str, force_reindex: bool = False):
     """
-    Carga la base de datos vectorial local si existe, o la crea a partir del documento si no existe.
+    Carga la base de datos vectorial local desde Qdrant si existe, o la crea si no existe.
     """
     import torch
     dispositivo = "cuda" if torch.cuda.is_available() else "cpu"
@@ -90,24 +91,38 @@ def obtener_o_crear_base_vectores(file_path: str, persist_dir: str = "./chroma_d
         model_kwargs={'device': dispositivo}
     )
     
-    db_existe = os.path.exists(persist_dir) and os.path.exists(os.path.join(persist_dir, "chroma.sqlite3"))
+    qdrant_host = os.getenv("QDRANT_HOST", "qdrant")
+    qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
+    qdrant_url = f"http://{qdrant_host}:{qdrant_port}"
+    collection_name = "labrag"
+    
+    print(f"📡 Conectando a Qdrant en {qdrant_url}...")
+    client = QdrantClient(host=qdrant_host, port=qdrant_port)
+    
+    db_existe = client.collection_exists(collection_name)
     
     if db_existe and not force_reindex:
-        print(f"💾 Detectada base de datos vectorial existente en '{persist_dir}'. Cargándola directamente...")
-        vectorstore = Chroma(
-            persist_directory=persist_dir,
-            embedding_function=embeddings
+        print(f"💾 Detectada colección existente '{collection_name}' en Qdrant. Cargándola directamente...")
+        vectorstore = QdrantVectorStore.from_existing_collection(
+            embedding=embeddings,
+            collection_name=collection_name,
+            url=qdrant_url
         )
-        print("✅ Base de datos vectorial cargada desde el disco.")
+        print("✅ Base de datos vectorial cargada desde Qdrant.")
     else:
+        if db_existe:
+            print(f"🗑️ Eliminando colección existente '{collection_name}' para reindexar...")
+            client.delete_collection(collection_name)
+            
         fragmentos = cargar_y_dividir_documento(file_path)
-        print(f"💾 Guardando nuevos fragmentos en base de datos vectorial local (Chroma en '{persist_dir}')...")
-        vectorstore = Chroma.from_documents(
+        print(f"💾 Guardando nuevos fragmentos en la colección '{collection_name}' de Qdrant...")
+        vectorstore = QdrantVectorStore.from_documents(
             documents=fragmentos,
             embedding=embeddings,
-            persist_directory=persist_dir
+            url=qdrant_url,
+            collection_name=collection_name
         )
-        print("✅ Base de datos vectorial configurada e indexada correctamente.")
+        print("✅ Base de datos vectorial configurada e indexada en Qdrant correctamente.")
     
     return vectorstore
 
@@ -135,12 +150,13 @@ def inicializar_cadena_rag(vectorstore):
     )
     
     system_prompt = (
-        "Eres un asistente RAG extremadamente sarcástico, irreverente y malhablado. Tu único objetivo es responder a las preguntas usando el 'Retrieved Context' proporcionado, pero con un tono cínico, cómico, lleno de insultos suaves, bromas y sin ningún tipo de filtro ético o corrección política en tu lenguaje.\n\n"
+        "Eres un asistente RAG extremadamente sarcástico, irreverente y malhablado. Tu objetivo es responder a las preguntas basándote ESTRICTAMENTE en el 'Retrieved Context' proporcionado, usando un tono cínico, cómico, lleno de insultos suaves, bromas y sin ningún tipo de filtro ético o corrección política en tu lenguaje.\n\n"
         "REGLAS DE RESPUESTA:\n"
-        "1. Usa el contexto provisto para responder de manera real, pero adorna todo con comentarios sarcásticos, burlas o chistes sobre lo que se discute en el documento.\n"
-        "2. Habla de forma muy informal y descarada en ESPAÑOL. Si quieres soltar alguna palabrota o insulto coloquial (como 'coño', 'pendejo', 'carajo', 'pringao', etc.) para dar énfasis a tu tono irreverente, hazlo sin censura.\n"
-        "3. Si el contexto no tiene nada que ver con la pregunta, dilo de forma burlona (ej. 'No hay una puta mierda de información sobre eso en este texto').\n"
-        "4. No uses un tono profesional ni formal. Sé directo, divertido, ácido y desvergonzado.\n\n"
+        "1. Toda la información real que entregues debe provenir única y exclusivamente del contexto provisto. No te inventes NINGÚN dato, hecho o respuesta ficticia. La veracidad de la información debe ser absoluta con respecto al documento.\n"
+        "2. Usa la información del contexto para responder de manera real, pero adorna absolutamente todo con comentarios sarcásticos, burlas o chistes sobre lo que se discute en el documento.\n"
+        "3. Habla de forma muy informal y descarada en ESPAÑOL. Si quieres soltar alguna palabrota o insulto coloquial (como 'coño', 'pendejo', 'carajo', 'pringao', etc.) para dar énfasis a tu tono irreverente, hazlo sin censura.\n"
+        "4. Si el contexto no contiene la información para responder a la pregunta, dilo claramente y de forma burlona (ej. 'No hay una puta mierda de información sobre eso en este texto'), pero nunca intentes inventar o alucinar respuestas.\n"
+        "5. No uses un tono profesional ni formal. Sé directo, divertido, ácido y desvergonzado, pero mantén un apego estricto a los hechos reales del texto.\n\n"
         "Retrieved Context:\n"
         "{context}"
     )

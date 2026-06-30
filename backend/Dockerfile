@@ -54,8 +54,8 @@ RUN chmod -R 777 /cache
 COPY --chown=appuser:appuser main.py .
 COPY --chown=appuser:appuser documentacion.* .
 
-# Crear el directorio para ChromaDB y asignar permisos
-RUN mkdir -p /app/chroma_db && chown -R appuser:appuser /app
+# Ajustar permisos del directorio de trabajo
+RUN chown -R appuser:appuser /app
 
 # Cambiar al usuario no privilegiado por defecto
 USER appuser

@@ -26,7 +26,7 @@
           </div>
           <div class="info-row">
             <span class="info-label">Vector Store:</span>
-            <span class="info-value">ChromaDB</span>
+            <span class="info-value">Qdrant</span>
           </div>
         </div>
       </div>
@@ -84,7 +84,7 @@
           <div class="start-hints">
             <div class="hint-card">
               <h4>🔍 Recuperación Vectorial</h4>
-              <p>Busca en ChromaDB los fragmentos de texto más similares a tu pregunta.</p>
+              <p>Busca en Qdrant los fragmentos de texto más similares a tu pregunta.</p>
             </div>
             <div class="hint-card">
               <h4>🤖 Generación Aumentada</h4>

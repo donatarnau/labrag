@@ -1,4 +1,4 @@
-# LabRAG: Sistema RAG Local con Docker (FastAPI + Vue 3 + Ollama)
+# LabRAG: Sistema RAG Local con Docker (FastAPI + Vue 3 + Ollama + Qdrant)
 
 Este proyecto proporciona una arquitectura completa, profesional y dockerizada para implementar un sistema **RAG (Retrieval-Augmented Generation)** 100% local. Permite realizar consultas interactivas sobre documentos (`.pdf` o `.txt`) mediante una interfaz web moderna.
 
@@ -8,7 +8,7 @@ El backend cuenta con una personalidad muy particular: está configurado por def
 
 ## 🛠️ Arquitectura y Tecnologías
 
-El sistema está orquestado con **Docker Compose** en tres contenedores principales:
+El sistema está orquestado con **Docker Compose** en cuatro contenedores principales:
 
 1. **Frontend (Vue 3 + Vite)**: 
    - Una interfaz web moderna, responsiva, con tema oscuro premium y visualización interactiva de las fuentes de información de cada respuesta.
@@ -16,9 +16,11 @@ El sistema está orquestado con **Docker Compose** en tres contenedores principa
 2. **Backend (FastAPI + LangChain)**:
    - API modular en Python.
    - **Embeddings locales**: HuggingFace (`all-MiniLM-L6-v2`) que se ejecutan localmente (con aceleración de CPU optimizada).
-   - **Base de Datos Vectorial**: ChromaDB local con persistencia de disco para almacenar y recuperar los fragmentos indexados.
    - **MultiQueryRetriever**: Genera variaciones de la consulta para mejorar la tasa de aciertos y la relevancia de los fragmentos recuperados.
-3. **Ollama**:
+3. **Qdrant**:
+   - Base de datos vectorial de alto rendimiento que almacena y recupera los fragmentos indexados.
+   - Persistencia local mediante volumen mapeado en el puerto `6333`.
+4. **Ollama**:
    - Motor de LLM local configurado por defecto para ejecutar el modelo `dolphin3`.
    - Soporte nativo para aceleración por GPU NVIDIA si está disponible en el host.
 
@@ -40,7 +42,7 @@ labrag/
 │   ├── vite.config.js
 │   └── Dockerfile               # Construcción multietapa con Nginx
 ├── docker-compose.yml           # Definición de servicios, volúmenes y GPU
-├── chroma_db/                   # [Ignorado en Git] Persistencia de vectores
+├── qdrant_data/                 # [Ignorado en Git] Persistencia de vectores de Qdrant
 ├── ollama_data/                 # [Ignorado en Git] Modelos locales de Ollama
 ├── .gitignore                   # Configuración de archivos excluidos de Git
 └── README.md                    # Esta guía
@@ -72,7 +74,8 @@ docker compose up --build -d
 Este comando:
 1. Compilará la interfaz de Vue y la montará en un servidor Nginx expuesto en el puerto `80`.
 2. Descargará y compilará la imagen del backend de FastAPI, pre-descargando el modelo de embeddings local para que funcione de forma 100% offline.
-3. Iniciará el contenedor de Ollama.
+3. Levantará la base de datos vectorial Qdrant.
+4. Iniciará el contenedor de Ollama.
 
 ### Paso 3: Descargar el Modelo en Ollama
 Dado que Ollama se ejecuta localmente y no requiere de APIs externas, debes descargar el modelo `dolphin3` ejecutando el siguiente comando:
@@ -91,7 +94,8 @@ Una vez levantados los servicios y con el modelo descargado en Ollama, puedes ac
 
 * **Panel Frontend (Interfaz Web)**: [http://localhost](http://localhost) (Puerto 80)
 * **Documentación de la API (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-* **Endpoint de Salud**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+* **Consola de Qdrant (Dashboard)**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
+* **Endpoint de Salud del Backend**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
 ---
 
@@ -99,6 +103,6 @@ Una vez levantados los servicios y con el modelo descargado en Ollama, puedes ac
 
 1. **Lectura y Fragmentación**: El backend procesa el documento y lo fragmenta en partes de 500 caracteres con 100 de solapamiento semántico.
 2. **Embeddings Locales Offline**: Genera vectores utilizando `all-MiniLM-L6-v2` ejecutándose de manera local en el contenedor.
-3. **Búsqueda Vectorial**: Expande y optimiza la búsqueda de fragmentos relevantes en ChromaDB mediante `MultiQueryRetriever`.
+3. **Búsqueda Vectorial**: Expande y optimiza la búsqueda de fragmentos relevantes en la base de datos de Qdrant mediante `MultiQueryRetriever`.
 4. **Generación con Personalidad**: El contexto recuperado es inyectado en un prompt diseñado específicamente para que el LLM responda con un rol irreverente y sarcástico.
 5. **Fuentes Citadas**: Cada respuesta devuelta incluye la procedencia exacta (archivo, página y fragmento de texto) de la información utilizada para responder.

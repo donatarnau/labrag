@@ -7,12 +7,12 @@ services:
       - "8000:8000"
     env_file:
       - ./backend/.env
-    volumes:
-      - ./chroma_db:/app/chroma_db
     depends_on:
       - ollama
+      - qdrant
     environment:
       - OLLAMA_HOST=http://ollama:11434
+      - QDRANT_HOST=qdrant
 
   frontend:
     build:
@@ -36,3 +36,11 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
+
